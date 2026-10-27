@@ -348,7 +348,7 @@ echo "Web-IDE setup is complete!"
 | **Node.js** | `20.x` | JavaScript 런타임 환경으로, 백엔드 서비스 및 프론트엔드 개발에 사용됩니다. |
 | **npm** | 최신 안정 버전 | Node.js 패키지 매니저입니다. |
 | **Helm** | 최신 3.x 버전 | 쿠버네티스 패키지 매니저로, 애플리케이션 차트를 관리하고 배포합니다. |
-| **Kubectl** | `1.31.8` | 쿠버네티스 클러스터를 제어하기 위한 커맨드 라인 도구입니다. |
+| **Kubectl** | `1.32.8` | 쿠버네티스 클러스터를 제어하기 위한 커맨드 라인 도구입니다. |
 
 #### 3. VS Code 확장 프로그램 (Extensions)
 
@@ -569,7 +569,7 @@ cd scp-v2-terraform-hol4
 복제된 프로젝트는 다음과 같은 구조와 기능을 가집니다.
     - **주요 파일:** `vpc.tf`, `subnets.tf`, `kubernetes_engine.tf` 등 각 리소스 종류별로 파일이 분리되어 인프라 구성을 쉽게 파악할 수 있습니다.
     - **네트워크 구성:** 실습에 필요한 Public/Private 서브넷, NAT 게이트웨이, 방화벽 규칙 등을 자동으로 구성합니다.
-    - **Kubernetes 클러스터:** Kubernetes `v1.31.8` 버전의 클러스터를 생성하며, **워커 노드 3대 (서버 타입: 4 vCPU / 8 GB RAM)** 규모의 Auto-Scaling Node Pool과 **NFS 파일 스토리지**를 포함합니다. (※ SKE 시스템 데몬을 위한 `kube-reserved` 자원 차감을 고려하여, 3장 Envoy Gateway 및 7장 Prometheus/Grafana/Alertmanager 모니터링 스택이 안정적으로 분산 스케줄링될 수 있도록 3대 구성을 기본 제공합니다.)
+    - **Kubernetes 클러스터:** Kubernetes `v1.32.8` 버전의 클러스터를 생성하며, **워커 노드 3대 (서버 타입: 4 vCPU / 8 GB RAM)** 규모의 Auto-Scaling Node Pool과 **NFS 파일 스토리지**를 포함합니다. (※ SKE 시스템 데몬을 위한 `kube-reserved` 자원 차감을 고려하여, 3장 Envoy Gateway 및 7장 Prometheus/Grafana/Alertmanager 모니터링 스택이 안정적으로 분산 스케줄링될 수 있도록 3대 구성을 기본 제공합니다.)
 3. **Terraform 실행**
     
     ![image.png](img/2-2-2-terraform-lifecycle.png)
@@ -714,9 +714,9 @@ kubectl version
 ```
 결과
 ```
-Client Version: v1.31.x
+Client Version: v1.32.x
 Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
-Server Version: v1.31.x-ske.p2
+Server Version: v1.32.x-ske.p2
 ```
 
 #### 클러스터 정보 확인
@@ -742,7 +742,7 @@ kubectl get nodes
 결과
 ```
 NAME                             STATUS   ROLES    AGE     VERSION
-ske-tfnodepoolhol5-2qz6c-kq7vh   Ready    <none>   3m21s   v1.31.8-ske.p2
+ske-tfnodepoolhol5-2qz6c-kq7vh   Ready    <none>   3m21s   v1.32.8-ske.p2
 ```
 
 ## 2.4 정리하기
@@ -840,11 +840,11 @@ kubectl wait --timeout=5m -n envoy-gateway-system deployment/envoy-gateway --for
 
 - Subnet ID 확인 경로:
   - SCP 콘솔 접속 → 서비스 → Networking → VPC
-  - Load Balancer용 Public Subnet인 `tfPUBSUBhol5`를 선택하고 ID 복사.
+  - Load Balancer용 Public Subnet인 `tfPUBSUBhol4`를 선택하고 ID 복사.
 
 - Security Group ID 확인 경로:
   - SCP 콘솔 접속 → 서비스 → Networking → Security Group
-  - Kubernetes Engine용 `tf-k8s-SG-hol5` 보안 그룹 상세 정보에서 ID 복사.
+  - Kubernetes Engine용 `tf-k8s-SG-hol4` 보안 그룹 상세 정보에서 ID 복사.
 
 ### 3.3.5 Gateway 리소스 생성 및 SCP Load Balancer 연동
 
@@ -998,12 +998,12 @@ replicaset.apps/envoy-gateway-58f7cb84b5                                        
 
 ### 3.3.8 로드밸런서용 자동 생성 Firewall 미사용 처리
 
-LoadBalancer 타입의 서비스를 생성하면 해당 LoadBalancer용 Firewall(`FW_LB_tfPUBSUBhol5`)이 자동으로 생성됩니다. Internet Gateway에 이미 Firewall이 설정되어 있으므로, Load Balancer에 Firewall을 이중으로 설정하면 보안은 강화되지만 설정 복잡도가 높아집니다.
+LoadBalancer 타입의 서비스를 생성하면 해당 LoadBalancer용 Firewall(`FW_LB_tfPUBSUBhol4`)이 자동으로 생성됩니다. Internet Gateway에 이미 Firewall이 설정되어 있으므로, Load Balancer에 Firewall을 이중으로 설정하면 보안은 강화되지만 설정 복잡도가 높아집니다.
 
 따라서 본 실습에서는 Terraform으로 생성한 Security Group으로만 접근을 제어하기 위해 Load Balancer용 Firewall은 미사용으로 설정합니다.
 
 - **경로:** 서비스 → Networking → Firewall 목록
-- **설정:** 목록에서 `FW_LB_tfPUBSUBhol5` Firewall을 찾아 **[미사용]** 으로 설정합니다.
+- **설정:** 목록에서 `FW_LB_tfPUBSUBhol4` Firewall을 찾아 **[미사용]** 으로 설정합니다.
 
 ![firewall](img/3-7-7-lb-firewall-inactive.png)
 
@@ -1633,7 +1633,7 @@ flowchart LR
    - **[로그 저장소 설정]**을 클릭하고, 로그 저장 버킷으로 동일한 공용 버킷 **`hol5-log-bucket-<MY_ID>`**를 지정하여 저장합니다.
 2. **Security Group 상품에서 로깅 활성화**:
    - **서비스 → Networking → Security Group** 메뉴로 이동합니다.
-   - 1장에서 생성한 `web-ide` 보안 그룹(`sg-webide-hol5`) 또는 K8s 노드풀 보안 그룹(`tf-k8s-SG-hol5`)을 선택합니다.
+   - 1장에서 생성한 `web-ide` 보안 그룹(`pubsub-sg-hol5`) 또는 K8s 노드풀 보안 그룹(`tf-k8s-SG-hol4`)을 선택합니다.
    - [상세 정보] 페이지에서 **로그 저장 여부(로깅 여부)**를 **[사용]**으로 변경하고 저장합니다.
 3. **보안 그룹 트래픽 유발 및 로그 확인**:
    - `web-ide` 터미널에서 보안 그룹 규칙을 통과하는 네트워크 트래픽을 유발합니다:
@@ -1707,7 +1707,7 @@ ServiceWatch 이벤트 규칙은 인프라 자원의 생성·수정·삭제 등 
 
 ##### 시나리오 B: Security Group 규칙 변경 감지 및 알림 검증 (`sgalleventrule`)
 1. **테스트 이벤트 유발**:
-   - **서비스 → Networking → Security Group** 메뉴로 이동하여 실습 대상 보안 그룹(예: `sg-webide-hol5`)을 선택합니다.
+   - **서비스 → Networking → Security Group** 메뉴로 이동하여 실습 대상 보안 그룹(예: `pubsub-sg-hol5`)을 선택합니다.
    - **[규칙 추가]** 버튼을 클릭하고 임시 인바운드 규칙을 추가합니다:
      - 대상주소 : `192.168.0.1`
      - 프로토콜: `TCP`
@@ -2060,7 +2060,7 @@ flowchart LR
        enabled: true
      ```
 4. **Helm 차트 배포 실행**:
-   - 3.3.3에서 Envoy Gateway를 `--version v1.7.1`로 고정한 것과 마찬가지로, 회차별 차트 버전 불일치로 인한 재현성 문제를 방지하기 위해 Kubernetes 1.31과 호환성이 검증된 `--version 65.5.0`을 지정하여 배포합니다.
+   - 3.3.3에서 Envoy Gateway를 `--version v1.7.1`로 고정한 것과 마찬가지로, 회차별 차트 버전 불일치로 인한 재현성 문제를 방지하기 위해 Kubernetes 1.32과 호환성이 검증된 `--version 65.5.0`을 지정하여 배포합니다.
      ```bash
      helm install kps prometheus-community/kube-prometheus-stack \
        --version 65.5.0 \
@@ -2565,7 +2565,7 @@ flowchart TD
 3. **Gateway 접속 확인**:
    - `curl -I http://grafana.<PUBLIC-NAT-IP>.sslip.io`가 이제 `404`(라우트 없음) 또는 응답 없음으로 바뀌었는지 확인해, HTTPRoute가 정상적으로 정리되었는지 검증합니다.
 4. **Envoy Gateway 및 Gateway 리소스 제거 (필수)**:
-   > ⚠️ **주의**: `hol5-main-gateway`와 그 Load Balancer(및 `FW_LB_tfPUBSUBhol5` Firewall)는 3장에서 Helm과 `kubectl apply`로 생성한 자원으로, **Terraform이 관리하지 않습니다.** 다음 9.2.4의 `terraform destroy`는 이 자원들을 정리하지 않으므로, Load Balancer가 Terraform 관리 Subnet/Security Group을 계속 점유한 채 남아 `terraform destroy`가 의존성 충돌로 실패하거나 Load Balancer/Firewall이 고아 자원으로 남아 과금이 지속될 수 있습니다. **반드시 여기서 먼저 제거합니다.**
+   > ⚠️ **주의**: `hol5-main-gateway`와 그 Load Balancer(및 `FW_LB_tfPUBSUBhol4` Firewall)는 3장에서 Helm과 `kubectl apply`로 생성한 자원으로, **Terraform이 관리하지 않습니다.** 다음 9.2.4의 `terraform destroy`는 이 자원들을 정리하지 않으므로, Load Balancer가 Terraform 관리 Subnet/Security Group을 계속 점유한 채 남아 `terraform destroy`가 의존성 충돌로 실패하거나 Load Balancer/Firewall이 고아 자원으로 남아 과금이 지속될 수 있습니다. **반드시 여기서 먼저 제거합니다.**
    - 3장에서 게이트웨이 매니페스트(`gateway.yaml`, `gatewayclass.yaml`, `envoyproxy.yaml`)를 작성했던 디렉토리로 이동하여 리소스 및 릴리스를 일괄 삭제합니다.
      ```bash
      cd ~/gateway
@@ -2576,11 +2576,11 @@ flowchart TD
      kubectl delete namespace envoy-gateway-system
      ```
    - **서비스 → Networking → Load Balancer**에서 Envoy Gateway가 생성했던 Load Balancer가 목록에서 사라졌는지 확인합니다. 잔존 시 수동으로 삭제합니다.
-   - **서비스 → Networking → Firewall**에서 `FW_LB_tfPUBSUBhol5` Firewall이 함께 삭제되었는지 확인합니다. 잔존 시 수동으로 삭제합니다.
+   - **서비스 → Networking → Firewall**에서 `FW_LB_tfPUBSUBhol4` Firewall이 함께 삭제되었는지 확인합니다. 잔존 시 수동으로 삭제합니다.
 5. **Security Group 잔여 규칙 확인 및 정리**:
    > ⚠️ **주의 (Security Group 잔여 규칙)**: SKE 공식 가이드에 따르면, Load Balancer 생성 시 어노테이션이나 플랫폼에 의해 Security Group에 자동으로 주입된 인바운드 규칙(NodePort, 서비스 포트 등)은 **Load Balancer나 Service를 삭제하더라도 자동으로 삭제되지 않습니다.** 이러한 규칙이 남아 있으면 9.2.4의 `terraform destroy` 실행 시 보안 그룹 삭제 실패나 의존성 충돌을 일으킬 수 있습니다.
    - **서비스 → Networking → Security Group** 메뉴로 이동합니다.
-   - Kubernetes 노드 풀 보안 그룹(`tf-k8s-SG-hol5`) 및 실습용 보안 그룹의 상세 페이지로 이동합니다.
+   - Kubernetes 노드 풀 보안 그룹(`tf-k8s-SG-hol4`) 및 실습용 보안 그룹의 상세 페이지로 이동합니다.
    - 3장에서 Envoy Gateway/Load Balancer 연동 시 추가되었던 인바운드 규칙(예: 서비스 포트 또는 임시 노드포트 등)이 잔존하는지 확인하고, 해당 규칙을 수동 삭제합니다.
 
 ### 9.2.3 Trail 및 로그 스토리지 정리
@@ -2651,29 +2651,5 @@ flowchart TD
 ## 9.3 정리하기
 
 실습 완료 후 불필요한 비용 과금 및 리소스 충돌을 방지하기 위해 모든 관찰성 설정과 클라우드 인프라 자원을 회수했습니다. 아래의 **최종 잔여 자원 점검 체크리스트**를 통해 SCP 콘솔에서 잔존 자원이 없는지 최종 확인합니다.
-
-### 최종 잔여 자원 점검 체크리스트
-
-| 카테고리 | 서비스 메뉴 | 점검 대상 자원 | 정상 상태 | 확인 여부 |
-| :--- | :--- | :--- | :--- | :---: |
-| **Management** | ServiceWatch → 대시보드 | `hol5-custom-dashboard` | 목록에 없음 (삭제 완료) | [ ] |
-| | ServiceWatch → 경보 정책 | `vm-cpu-high-alert` 등 4개 경보 | 목록에 없음 (삭제 완료) | [ ] |
-| | ServiceWatch → 이벤트 규칙 | `vpcalleventrule`, `sgalleventrule` | 목록에 없음 (삭제 완료) | [ ] |
-| | ServiceWatch → 로그 그룹 | `hol5-vm-applog-group`, Trail 로그 그룹 | 목록에 없음 (과금 방지) | [ ] |
-| | Logging & Audit → Trail | `hol5-audit-trail` | 목록에 없음 (삭제 완료) | [ ] |
-| | IAM → 역할 / 정책 | `audit-trail-role`, `trail-to-servicewatch-policy` | 목록에 없음 (삭제 완료) | [ ] |
-| **Storage** | Object Storage | `hol5-log-bucket-<MY_ID>` | 버킷 삭제 완료 | [ ] |
-| | File Storage | 2장에서 생성한 NFS 스토리지 | 삭제 완료 (`terraform destroy`) | [ ] |
-| **Database** | MariaDB | `tf-mariadb-hol5` (DBaaS) | 삭제 완료 (`terraform destroy`) | [ ] |
-| **Container** | Kubernetes Engine (SKE) | `tf-ske-cluster-hol5` 및 Node Pool | 삭제 완료 (`terraform destroy`) | [ ] |
-| **Networking** | Load Balancer | Envoy Gateway 연동 LB | 목록에 없음 (수동 삭제 완료) | [ ] |
-| | Firewall | `FW_LB_tfPUBSUBhol5`, `FW_IGW_vpc-webide-hol5` | 삭제 완료 | [ ] |
-| | Network Logging → Firewall Logging | 로그 저장소 버킷 매핑 | `미사용` 상태 | [ ] |
-| | Security Group | `pubsub-sg-hol5`, `tf-k8s-SG-hol5` 잔여 규칙 | 삭제 완료 | [ ] |
-| | Public IP | `web-ide` 및 LB 공인 IP | 반납 완료 (목록에 없음) | [ ] |
-| | VPC / Subnet / IGW | `vpc-webide-hol5`, `tf-vpc-hol5`, Subnet, IGW | 삭제 완료 | [ ] |
-| **Compute** | Virtual Server | `web-ide` 및 SKE 워커 노드 VM | 삭제 완료 | [ ] |
-| | Virtual Server → Keypair | `mykey-hol5` | 삭제 완료 | [ ] |
-| **인증키** | 마이페이지 → 인증키 관리 | 실습용 API Access Key / Secret Key | 삭제(폐기) 완료 | [ ] |
 
 ---
