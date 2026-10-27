@@ -229,7 +229,7 @@ VM에 직접 적용되는 가상 방화벽입니다. 더욱 세분화된 접근 
 - 서비스 정보 입력
   - 서버 수: `1`
   - 상품 유형:
-    - 서버타입: `Standard-1/s1v1m2(vCPU 1 | Memory 2G)`
+    - 서버타입: `Standard-2/s2v1m2(vCPU 1 | Memory 2G)`
   - Block Storage:
     - 기본 OS: `6` Units
     - Max IOPS: `5000` IOPS
@@ -507,17 +507,27 @@ mkdir -p ~/.scpconf
 #### config.json 파일 생성
 
 - `~/.scpconf/config.json` 파일을 생성하고 SCP 플랫폼의 인증 URL과 기본 리전 정보를 설정합니다.
-- 이 실습에서는 `KR-WEST1` 리전을 사용합니다.
+- 실습 환경 또는 본인 계정이 할당된 리전에 맞추어 **`kr-west1`** 또는 **`kr-east1`** 중 하나를 선택하여 설정합니다.
 ```bash
 code-server ~/.scpconf/config.json
 ```
 
+##### [옵션 1] KR-WEST1 설정 (서부 리전)
 ```json
 {
     "auth-url": "https://iam.e.samsungsdscloud.com/v1",
     "default-region": "kr-west1"
 }
 ```
+
+##### [옵션 2] KR-EAST1 설정 (동부 리전)
+```json
+{
+    "auth-url": "https://iam.e.samsungsdscloud.com/v1",
+    "default-region": "kr-east1"
+}
+```
+
 
 #### credentials.json 파일 생성
 
@@ -1374,6 +1384,7 @@ flowchart TD
 1. **에이전트 통신 요건 확인**:
    - 에이전트에서 SCP의 OpenAPI Endpoint로 Outbound HTTPS(TCP 443) 통신이 허용되어 있어야 합니다.
    - KR-WEST-1 리전 Endpoint: `https://servicewatch.kr-west1.e.samsungsdscloud.com`
+   - KR-EAST-1 리전 Endpoint: `https://servicewatch.kr-east1.e.samsungsdscloud.com`
 2. **인증키 준비**:
    - 2.3.1에서 발급받은 SCP **IAM Access Key / Secret Key**를 준비합니다.
 3. **로그 그룹 및 로그 스트림 생성**:
@@ -1400,6 +1411,7 @@ flowchart TD
      ```bash
      code-server agent.json
      ```
+     ##### [옵션 1] KR-WEST1 설정 (서부 리전)
      ```json
      {
        "namespace": "hol5-vm-agent",
@@ -1407,6 +1419,18 @@ flowchart TD
        "accessSecret": "<MY_SECRET_KEY>",
        "resourceId": "<web-ide 서버 ID>",
        "openApiEndpoint": "https://servicewatch.kr-west1.e.samsungsdscloud.com",
+       "telemetryPort": 8888
+     }
+     ```
+     
+     ##### [옵션 2] KR-EAST1 설정 (동부 리전)
+     ```json
+     {
+       "namespace": "hol5-vm-agent",
+       "accessKey": "<MY_ACCESS_KEY>",
+       "accessSecret": "<MY_SECRET_KEY>",
+       "resourceId": "<web-ide 서버 ID>",
+       "openApiEndpoint": "https://servicewatch.kr-east1.e.samsungsdscloud.com",
        "telemetryPort": 8888
      }
      ```
@@ -2653,143 +2677,3 @@ flowchart TD
 | **인증키** | 마이페이지 → 인증키 관리 | 실습용 API Access Key / Secret Key | 삭제(폐기) 완료 | [ ] |
 
 ---
-
-
-
-
-<!--
-### 4.3.4 [콘솔 실습 3] File Storage 용량 경보(total_byte) 설정 및 더미 파일 부하 검증
-
-> 💡 **File Storage 모니터링 특성**: SCP File Storage는 고정 용량 상한(%) 없이 저장 데이터량에 따라 유연하게 자동 확장·축소되는 완전 관리형 분산 파일 시스템입니다. 따라서 백분율(`%`)이 아닌 **총 사용 바이트(`total_byte`)** 단위로 용량 임곗값 경보를 구성합니다. 또한 **기본 모니터링 수집 주기가 이미 1분(60초)**으로 제공되므로 별도의 세부 모니터링 전환이 필요하지 않습니다.
-
-1. **File Storage 볼륨 및 스토리지 클래스 확인**:
-   - **서비스 → Storage → File Storage**에서 2장에서 생성된 NFS 볼륨의 상태가 `Active`인지 확인합니다.
-2. **볼륨 용량 경보 생성**:
-   - **ServiceWatch → 경보 → 경보 정책 목록 → [경보 정책 생성]**
-   - **기본 정보**: 정책명 `fs-storage-byte-alert` / 경보 단계 `Middle`
-   - **대상 설정**: 네임스페이스 `File Storage` / 자원 대상 NFS 볼륨 선택 / 지표 `total_byte`
-   - **조건 설정**: 통계 `최대` / 조건 `>= 1000000000` (1,000,000,000 Byte = 1GB)
-   - **평가 기간**: 평가 범위 `300초` / 평가 횟수 `1회` / 위반 횟수 `1회`
-     > 💡 **경보 판정 기준**: 5분(300초) 단위 집계 창에서 1회 이상 총 사용량이 1GB를 초과할 경우 `Alert` 상태로 전이됩니다.
-   - **알림 채널**: E-mail 수신처를 지정하고 저장을 완료합니다.
-3. **임시 Pod 더미 파일 생성으로 경보 발화 확인**:
-   ```bash
-   # 1) 2장에서 배포된 NFS StorageClass 확인 (nfs-subdir-external-sc)
-   kubectl get storageclass
-
-   # 2) 임시 테스트용 RWX PVC 및 테스트 Pod 생성
-   cat <<'EOF' | kubectl apply -f -
-   apiVersion: v1
-   kind: PersistentVolumeClaim
-   metadata:
-     name: fs-load-test-pvc
-   spec:
-     accessModes: ["ReadWriteMany"]
-     storageClassName: nfs-subdir-external-sc
-     resources:
-       requests:
-         storage: 2Gi
-   ---
-   apiVersion: v1
-   kind: Pod
-   metadata:
-     name: fs-load-test
-   spec:
-     containers:
-       - name: busybox
-         image: busybox
-         command: ["sleep", "3600"]
-         volumeMounts:
-           - mountPath: /data
-             name: vol
-     volumes:
-       - name: vol
-         persistentVolumeClaim:
-           claimName: fs-load-test-pvc
-   EOF
-   kubectl wait --for=condition=Ready pod/fs-load-test --timeout=120s
-
-   # 3) 1GB 임계치를 초과하는 1.5GB 더미 파일 생성 (약 10~15초 소요)
-   kubectl exec fs-load-test -- dd if=/dev/zero of=/data/dummy.img bs=1M count=1500
-   ```
-   - **ServiceWatch → 지표**에서 `File Storage` 네임스페이스의 `total_byte` 지표가 약 1.5GB($1.5 \times 10^9$ Byte)로 상승하는지 확인합니다.
-    ![image.png](img/4-3-4-filestorage.png)
-
-
-   - 약 2~3분 경과 후 **ServiceWatch → 경보 → 경보 정책 목록**에서 `fs-storage-byte-alert` 상태가 `Normal` → `Alert`로 전이되는 것을 확인합니다.
-    ![image.png](img/4-3-4-filestorage-alter.png)
-
-   - **확인 후 즉시 정리(필수)**: 7장 Prometheus/Grafana 실습에 영향이 없도록 임시 리소스를 삭제하여 볼륨 사용량을 복구합니다.
-     ```bash
-     kubectl delete pod fs-load-test
-     kubectl delete pvc fs-load-test-pvc
-     ```
-   - Pod 및 PVC 삭제 후 수 분 내에 `total_byte`가 감소하고 경보 상태가 다시 `Normal`로 복구되는지 확인합니다.
--->
-
-<!--
-### 4.3.4 [콘솔 실습 3] MariaDB(DBaaS) 인스턴스 준비, CPU/연결수 경보 설정 및 쿼리 부하 검증
-
-> 💡 **MariaDB(DBaaS) 모니터링 & 보안 특성**:
-> - **기본 1분 수집**: SCP DBaaS(MariaDB)는 기본 모니터링 수집 주기가 이미 **1분(60초)**으로 제공되므로 별도의 세부 모니터링 전환이 필요하지 않습니다.
-> - **포트 및 보안 정책**: MariaDB는 Security Group 대신 **IP 접근 제어** 목록을 통해서만 접속을 허용합니다. 또한 Database Port는 생성 시 지정(콘솔 기본 제시값: `2866`)하므로, 접속 명령어에 포트(`-P 2866`)를 반드시 명시해야 합니다.
-
-1. **MariaDB(DBaaS) 인스턴스 준비**:
-   - **서비스 → Database → MariaDB → [DB 생성]**
-   - **기본 정보**:
-     - DB 인스턴스명: `production-mariadb` (사양: 실습용 최소 스펙 `1 vCore / 2GB RAM` 등 선택)
-     - 관리자 계정명 및 비밀번호: 메모해 둡니다 (예: `dbadmin` / `P@ssw0rd1234!`)
-     - Database Port: 콘솔 기본값인 **`2866`** 유지 (또는 원하는 포트 지정 후 메모)
-   - **네트워크 및 서브넷 설정**:
-     - VPC: 2장에서 SKE 클러스터가 생성된 VPC 선택
-     - Subnet: **`General` 유형의 서브넷** 선택 (※ `Local` 서브넷은 DBaaS 생성이 불가합니다.)
-   - **IP 접근 제어 설정 (필수)**:
-     - [IP 접근 제어] 항목에 SKE 워커 노드 및 Pod가 위치한 **VPC 대역(`10.0.0.0/16`)**을 등록하여 Pod에서의 접속을 허용합니다.
-   - 생성이 완료되면 상세 정보 화면에서 접속 Endpoint(**사설 IP**)를 확인하고 메모합니다.
-2. **CPU 과부하 및 커넥션 사용률 경보 설정**:
-   - **ServiceWatch → 경보 → 경보 정책 목록 → [경보 정책 생성]**
-   - **CPU 경보**:
-     - 정책명: `mariadb-cpu-alert` / 경보 단계: `High`
-     - 네임스페이스: `MariaDB` / 자원: `production-mariadb` / 지표: `CPU Usage`
-     - 조건: 통계 `평균` / `>= 85%` / 평가 범위 `300초` / 평가 횟수 `1회` / 위반 횟수 `1회`
-   - **커넥션 경보**:
-     - 정책명: `mariadb-conn-alert` / 경보 단계: `Middle`
-     - 네임스페이스: `MariaDB` / 자원: `production-mariadb` / 지표: `Connection usage`
-     - 조건: 통계 `최대` / `>= 70%` / 평가 범위 `300초` / 평가 횟수 `1회` / 위반 횟수 `1회`
-   - 알림 채널(이메일)을 매핑하고 저장을 완료합니다.
-3. **부하 유발로 경보 발화 확인**:
-   - SKE 클러스터 내 임시 MySQL 클라이언트 Pod를 실행합니다:
-     ```bash
-     kubectl run mariadb-load-test --rm -it --image=mariadb:11 --restart=Never -- bash
-     ```
-   - Pod 셸 내부에서 아래 부하 스크립트를 실행합니다 (포트 `-P 2866` 명시):
-     ```bash
-       # 1) 접속 상태 및 단일 쿼리 정상 작동 사전 검증
-       mariadb -h <DB_IP> -P 2866 -u <계정명> --password='<비밀번호>' --skip-ssl -e "SELECT 1;"
-
-       # 2) Ctrl+C 입력 시 모든 병렬 부하 프로세스 즉시 중단(kill) 설정
-       trap 'echo -e "\n[!] 부하 생성을 중단합니다..."; kill 0; exit' INT
-
-       # 3) CPU 및 커넥션 부하 생성 (포그라운드 대기, Ctrl+C로 언제든지 중단 가능)
-       echo "MariaDB 부하 유발 중... (중단하려면 Ctrl+C를 누르세요)"
-       for i in 1 2 3 4; do
-         ( for j in $(seq 1 200); do
-             mariadb -h <DB_IP> -P 2866 -u <계정명> --password='<비밀번호>' --skip-ssl -e "SELECT BENCHMARK(50000000, MD5(RAND()));" > /dev/null 2>&1 || break
-           done ) &
-       done
-
-       for i in $(seq 1 40); do
-         mariadb -h <DB_IP> -P 2866 -u <계정명> --password='<비밀번호>' --skip-ssl -e "SELECT SLEEP(300);" > /dev/null 2>&1 &
-       done
-
-       # 포그라운드에서 부하 유지 (Ctrl+C를 누르면 상단 trap에 의해 즉시 종료됩니다)
-       wait
-       ```
-       > 💡 **부하 제어 및 종료 팁**:
-       > - 상기 스크립트는 **포그라운드(Foreground)**에서 실행되어 터미널 화면을 유지하며, 언제든지 키보드의 **`Ctrl+C`**를 누르면 모든 병렬 부하 프로세스가 일괄 종료됩니다.
-       > - 부하 스크립트가 즉시 종료될 경우 `mariadb -h <DB_IP> -P 2866 -u <계정명> --password='<비밀번호>' --skip-ssl -e "SELECT 1;"` 단일 명령을 실행하여 **SCP 콘솔 [IP 접근 제어] 미등록(`ERROR 1130`)** 또는 비밀번호 오류(`ERROR 1045`)를 확인하세요.
-    - **ServiceWatch → 지표**에서 `production-mariadb`의 `CPU Usage` 및 `Connection usage`가 임곗값을 초과하는지 관찰합니다.
-   - 수 분 후 **ServiceWatch → 경보 → 경보 정책 목록**에서 `mariadb-cpu-alert` 및 `mariadb-conn-alert`가 `Alert` 상태로 전이되는지 확인합니다.
-   ![image.png](img/4-3-5-db-alter.png)
-   - 확인 후 `exit`으로 Pod 셸을 종료하면 테스트 Pod가 자동 정리되고, 백그라운드 쿼리가 종료되면서 경보가 `Normal`로 복구됩니다.
--->
