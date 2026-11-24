@@ -1560,9 +1560,14 @@ SCP 네트워크 자원의 관찰 영역은 성격이 다른 3가지로 나뉩�
 - **성능 지표(Metrics)**: Internet Gateway, VPN 등의 트래픽량 (ServiceWatch 지표)
 - **이벤트(Events)**: VPC/Subnet 등 네트워크 자원의 생성·변경·삭제 (ServiceWatch 이벤트 규칙)
 - **보안 로그**: Firewall/Security Group의 트래픽 허용·차단 기록 (Object Storage에 CSV 저장)
+>💡 이번 실습에서는 **이벤트 규칙**을 통한 네트워크 자원의 변경 사항 감지 ,이메일 알림 설정과 **보안 로그**를 통한 트래픽 허용·차단 내역 분석을 진행합니다.
 
-### 6.2.3 로그 패턴(Log Pattern): 저장된 로그를 지표로 바꾸기
- ServiceWatch의 **로그 패턴** 기능은 텍스트 형태의 로그 데이터 내 특정 문자열 매칭 건수를 실계 시간 지표로 변환해 주는 강력한 기능입니다. 이를 통해 텍스트 로그 내 `ERROR` 발생 건수 등에 대해 경보 정책을 설정할 수 있습니다.
+
+### 6.2.3 로그 패턴(Log Pattern): Audit Trail 로그의 지표화
+Audit Trail을 통해 수집된 감사 로그는 Object Storage에 저장되며, 로그 그룹(Log Group)과 연계하여 조회 및 분석할 수 있습니다.
+ServiceWatch의 로그 패턴(Log Pattern) 기능은 로그 그룹에 수집된 로그에서 특정 문자열이나 패턴의 매칭 건수를 집계하여 사용자 정의 지표로 변환하는 기능입니다.
+
+이를 통해 로그 내 ERROR 발생 건수 등 특정 패턴의 발생 빈도를 모니터링하고, 임곗값에 따른 경보 정책을 설정할 수 있습니다.
 
 ```mermaid
 flowchart LR
@@ -1790,7 +1795,7 @@ SCP Trail 서비스에서 수집된 감사 로그를 **ServiceWatch 로그 그�
    - **대상 리전 \***: `전체` (기본값)
    - **대상 자원 유형 \***: `전체` (기본값)
    - **대상 사용자 \***: `전체` (기본값)
-   - **저장 버킷 리전 \***: `kr-west1` (기본값)
+   - **저장 버킷 리전 \***: `kr-east1` (기본값)
    - **저장 버킷 \***: 6.3.1에서 생성한 공용 버킷 **`hol5-log-bucket-<MY_ID>`**
    - **저장 형식 \***: **`JSON`**
    - **로그파일 검증**: **`사용`**
@@ -1947,12 +1952,13 @@ flowchart TB
 
 | 구성요소 | 역할 |
 | :--- | :--- |
-| Prometheus Server | 지표를 스크랩해 저장하는 시계열 DB(TSDB) + 질의 엔진 |
-| Exporter | 대상 시스템의 상태를 `/metrics` 형식으로 변환해 노출 (예: Node Exporter) |
-| Alertmanager | Prometheus가 평가한 경보를 라우팅·그룹핑·억제 후 채널로 전달 |
-| Prometheus Operator | Kubernetes CRD로 위 구성요소들을 선언적으로 관리하는 컨트롤러 |
-| `ServiceMonitor` / `PodMonitor` | "어떤 Service/Pod를 스크랩할지" 선언하는 CRD |
-| `PrometheusRule` | 경보/녹화 규칙을 선언하는 CRD (7.3.3에서 실습) |
+| Prometheus Operator | Prometheus 및 관련 구성요소의 설치, 설정 및 운영을 자동화하는 컨트롤러 |
+| Exporter | 대상 시스템의 상태 정보를 수집하여 `/metrics` 형태로 노출 (예: Node Exporter) |
+| `ServiceMonitor` / `PodMonitor` | 지표 수집 대상, 수집 주기 및 수집 경로 정의 (CRD로 등록) |
+| `PrometheusRule` | 경보 발생 조건 및 지표 기록 규칙 정의 (CRD로 등록) (7.3.3에서 실습) |
+| Prometheus Server | 지표 수집 및 저장, PromQL 질의, 경보 규칙 평가 |
+| Alertmanager | Prometheus가 평가한 경보를 라우팅·그룹핑·억제 후 채널(Email, Slack 등)로 알림 발송 |
+
 
 ```mermaid
 flowchart LR
@@ -1992,7 +1998,7 @@ flowchart LR
 1. **작업 디렉토리 및 네임스페이스 준비**:
    - Web-IDE 웹 터미널을 열고 Prometheus 배포 매니페스트 및 설정 파일을 관리할 작업 디렉토리를 생성하고 이동합니다.
      ```bash
-     mkdir -p ~/prometheus && cd ~/prometheus
+     mkdir -p ~/project/prometheus && cd ~/project/prometheus
      ```
    - Helm 리포지토리를 추가하고 최신 차트 정보를 갱신한 후, `monitoring` 네임스페이스를 생성합니다.
      ```bash
@@ -2491,6 +2497,7 @@ flowchart TD
     ![Grafana Dashboard Links 구성 화면](img/8-3-2-grafana-dashboard-link-placeholder.png)
     ![Grafana Dashboard Links 구성 화면](img/8-3-2-grafana-dashboard-link-placeholder2.png)
     ![Grafana Dashboard Links 구성 화면](img/8-3-2-grafana-dashboard-link-placeholder3.png)
+    ![Grafana Dashboard Links 구성 화면](img/8-3-2-grafana-dashboard-link-placeholder4.png)
 
 2. **동선 확인**: Grafana 대시보드 우측 상단에 표시되는 링크를 클릭하여 새 창으로 SCP ServiceWatch 콘솔이 올바르게 호출되는지 검증합니다.
 
@@ -2648,7 +2655,6 @@ flowchart TD
 9. **IAM 인증키 삭제**:
    - **마이페이지 → 인증키 관리**로 이동하여 2.3.1에서 Terraform 및 API 연동용으로 발급받았던 Access Key / Secret Key를 **[삭제(폐기)]**합니다.
 
-## 9.3 정리하기
-
+## 9.3 정리하기  
 실습 완료 후 불필요한 비용 과금 및 리소스 충돌을 방지하기 위해 모든 관찰성 설정과 클라우드 인프라 자원을 회수했습니다.
 ---
